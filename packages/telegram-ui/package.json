@@ -1,0 +1,12 @@
+{
+  "name": "@job-search/telegram-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@job-search/domain": "workspace:*"
+  }
+}

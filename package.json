@@ -1,0 +1,50 @@
+{
+  "name": "telegram-job-search-automation-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "api": "tsx apps/api/src/index.ts",
+    "telegram-bot": "tsx apps/telegram-bot/src/index.ts",
+    "worker:ingest": "tsx apps/worker-ingest/src/index.ts",
+    "worker:apply": "tsx apps/worker-apply/src/index.ts",
+    "worker:inbox": "tsx apps/worker-inbox/src/index.ts",
+    "worker:digest": "tsx apps/worker-digest/src/index.ts",
+    "worker:canary": "tsx apps/worker-canary/src/index.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "smoke:local": "bash scripts/local-smoke.sh",
+    "dev": "tsx apps/api/src/index.ts",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "build": "tsc -p tsconfig.build.json",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:coverage && pnpm build"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "bullmq": "^5.66.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.6.2",
+    "grammy": "^1.38.4",
+    "ioredis": "^5.8.2",
+    "pg": "^8.16.3",
+    "playwright": "^1.57.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "@vitest/coverage-v8": "^4.1.6",
+    "eslint": "^9.39.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vitest": "^4.0.14"
+  }
+}

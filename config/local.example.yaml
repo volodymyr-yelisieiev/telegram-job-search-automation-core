@@ -1,0 +1,36 @@
+app:
+  mode: review_first
+  timezone: Europe/Vienna
+  environment: local
+  irreversible_actions_enabled: false
+
+api:
+  token: local-dev-token
+  cors_origins:
+    - http://127.0.0.1:3000
+    - http://localhost:3000
+
+providers:
+  hh:
+    enabled: true
+    status: stable
+    mode: dry_run_apply
+  robota:
+    enabled: true
+    status: read_only
+    mode: read_only
+  telegram:
+    enabled: true
+    mode: read_only
+
+applications:
+  require_review_first_n: 20
+  max_per_day: 80
+  max_per_hour: 10
+  max_per_company_per_day: 1
+  max_per_company_per_week: 3
+
+conversation:
+  auto_reply_enabled: false
+  min_classification_confidence: 0.82
+  unknown_category_requires_review: true

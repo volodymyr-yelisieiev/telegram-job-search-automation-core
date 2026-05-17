@@ -1,0 +1,18 @@
+{
+  "name": "@job-search/telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@job-search/config": "workspace:*",
+    "@job-search/db": "workspace:*",
+    "@job-search/domain": "workspace:*",
+    "@job-search/observability": "workspace:*",
+    "@job-search/telegram-ui": "workspace:*",
+    "grammy": "^1.38.4"
+  }
+}

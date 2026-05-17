@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "baseUrl": ".",
+    "paths": {
+      "@job-search/automation": ["packages/automation/src/index.ts"],
+      "@job-search/config": ["packages/config/src/index.ts"],
+      "@job-search/db": ["packages/db/src/index.ts"],
+      "@job-search/domain": ["packages/domain/src/index.ts"],
+      "@job-search/llm": ["packages/llm/src/index.ts"],
+      "@job-search/observability": ["packages/observability/src/index.ts"],
+      "@job-search/providers": ["packages/providers/src/index.ts"],
+      "@job-search/telegram-ui": ["packages/telegram-ui/src/index.ts"],
+      "@job-search/testing": ["packages/testing/src/index.ts"]
+    }
+  },
+  "include": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "eslint.config.js"],
+  "exclude": ["node_modules", "dist"]
+}

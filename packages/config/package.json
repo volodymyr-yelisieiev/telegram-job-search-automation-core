@@ -1,0 +1,14 @@
+{
+  "name": "@job-search/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@job-search/domain": "workspace:*",
+    "dotenv": "^17.2.3",
+    "zod": "^4.1.13"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@job-search/worker-canary",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@job-search/automation": "workspace:*",
+    "@job-search/config": "workspace:*",
+    "@job-search/domain": "workspace:*",
+    "@job-search/observability": "workspace:*",
+    "@job-search/providers": "workspace:*"
+  }
+}
