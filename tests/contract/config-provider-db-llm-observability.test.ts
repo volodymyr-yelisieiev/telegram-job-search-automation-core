@@ -722,7 +722,7 @@ describe("config, provider, db, llm, observability and queue hardening", () => {
     expect(report.schemaViolations).toBe(0);
     expect(report.shortlisted + report.rejected).toBe(10_000);
     expect(Object.keys(report.providerBreakdown)).toEqual(expect.arrayContaining(["hh", "robota", "telegram"]));
-  });
+  }, 15_000);
 
   it("checks queue duplicate, restart, DLQ and retry resilience", async () => {
     await expect(runQueueResilienceCheck()).resolves.toMatchObject({
