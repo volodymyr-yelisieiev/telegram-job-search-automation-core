@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS raw_jobs (
 CREATE TABLE IF NOT EXISTS search_runs (
   id uuid PRIMARY KEY,
   provider_id text NOT NULL,
+  search_profile_id text NOT NULL DEFAULT 'default-search-profile',
+  query text NOT NULL DEFAULT '',
+  filters jsonb NOT NULL DEFAULT '{}'::jsonb,
   raw_count integer NOT NULL,
   normalized_count integer NOT NULL,
   rejected_count integer NOT NULL,
@@ -109,6 +112,9 @@ CREATE TABLE IF NOT EXISTS normalized_jobs (
   language text NOT NULL,
   contact_method text,
   publication_date text,
+  availability_status text NOT NULL DEFAULT 'open',
+  already_applied boolean NOT NULL DEFAULT false,
+  quality_signals jsonb NOT NULL DEFAULT '[]'::jsonb,
   raw_payload_id text NOT NULL,
   extraction_confidence integer NOT NULL,
   created_at timestamptz NOT NULL,
@@ -145,6 +151,9 @@ CREATE TABLE IF NOT EXISTS job_scores (
   relevance_score integer NOT NULL,
   interview_likelihood_score integer NOT NULL,
   decision text NOT NULL,
+  score_strategy text NOT NULL DEFAULT 'balanced',
+  score_profile_version text NOT NULL DEFAULT 'unknown',
+  factor_weights jsonb NOT NULL DEFAULT '{}'::jsonb,
   reasons jsonb NOT NULL,
   risks jsonb NOT NULL,
   hard_rejections jsonb NOT NULL,
@@ -409,9 +418,14 @@ CREATE TABLE IF NOT EXISTS approval_requests (
   user_id text NOT NULL,
   entity_type text NOT NULL,
   entity_id text NOT NULL,
+  requested_action text NOT NULL DEFAULT 'send_application',
   status text NOT NULL,
   requested_at timestamptz NOT NULL DEFAULT now(),
-  resolved_at timestamptz
+  resolved_at timestamptz,
+  expires_at timestamptz NOT NULL DEFAULT now() + interval '24 hours',
+  policy_decision_id text,
+  draft_hash text,
+  manual_review_id uuid
 );
 
 CREATE TABLE IF NOT EXISTS manual_review_items (

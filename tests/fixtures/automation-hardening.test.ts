@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   BrowserSessionManager,
+  BrowserAuthStateVault,
+  BrowserArtifactAccessLedger,
   CanaryRunner,
   DeterministicFlowRunner,
   FingerprintEngine,
   hhDryRunFlow,
+  mapBrowserErrorOutcome,
   ReplayService,
+  robotaDryRunFlow,
   SelectorRegistry,
   type BrowserPageSnapshot,
   type FlowDefinition,
@@ -13,6 +17,14 @@ import {
 } from "@job-search/automation";
 
 const fingerprints: Record<string, FlowFingerprint> = {
+  hh_results_page: {
+    id: "hh_results_page",
+    urlPattern: "/search/vacancy",
+    titlePattern: "vacancy",
+    requiredDomAnchors: ["[data-qa='vacancy-serp__vacancy-title']"],
+    requiredTextAnchors: ["Найден"],
+    captchaIndicators: ["captcha"]
+  },
   hh_job_page: {
     id: "hh_job_page",
     urlPattern: "/vacancy/",
@@ -34,6 +46,12 @@ const fingerprints: Record<string, FlowFingerprint> = {
 };
 
 const snapshots: Record<string, BrowserPageSnapshot> = {
+  search_results: {
+    url: "https://hh.example/search/vacancy?text=node",
+    title: "vacancy search",
+    text: "Найден backend вакансии",
+    domAnchors: ["[data-qa='vacancy-serp__vacancy-title']"]
+  },
   job_details: {
     url: "https://hh.example/vacancy/1001",
     title: "Backend",
@@ -63,6 +81,7 @@ describe("automation hardening", () => {
       flow: hhDryRunFlow,
       fingerprints,
       selectorRegistry: new SelectorRegistry({
+        job_card: { primary: "[data-qa='vacancy-serp__vacancy-title']", fallbacks: [], required: true },
         apply_button: {
           primary: "[data-qa='vacancy-response-link-top']",
           fallbacks: ["button:has-text('Откликнуться')"],
@@ -76,6 +95,7 @@ describe("automation hardening", () => {
       }),
       snapshots,
       availableSelectorsByState: {
+        search_results: ["[data-qa='vacancy-serp__vacancy-title']"],
         job_details: ["[data-qa='vacancy-response-link-top']"],
         application_form: ["textarea[name='letter']"]
       },
@@ -133,11 +153,12 @@ describe("automation hardening", () => {
       flow: hhDryRunFlow,
       fingerprints,
       selectorRegistry: new SelectorRegistry({
+        job_card: { primary: "[data-qa='vacancy-serp__vacancy-title']", fallbacks: [], required: true },
         apply_button: { primary: "[data-qa='vacancy-response-link-top']", fallbacks: [], required: true },
         cover_letter_textarea: { primary: "textarea[name='letter']", fallbacks: [], required: false }
       }),
       snapshots,
-      availableSelectorsByState: { job_details: ["[data-qa='vacancy-response-link-top']"] },
+      availableSelectorsByState: { search_results: ["[data-qa='vacancy-serp__vacancy-title']"], job_details: ["[data-qa='vacancy-response-link-top']"] },
       guardResults: { ...guards, not_already_applied: false },
       stopBeforeActions: ["submit_application"]
     });
@@ -149,6 +170,7 @@ describe("automation hardening", () => {
   it("covers terminal success, missing states, no transitions and stop-boundary success", () => {
     const runner = new DeterministicFlowRunner();
     const registry = new SelectorRegistry({
+      job_card: { primary: "[data-qa='vacancy-serp__vacancy-title']", fallbacks: [], required: true },
       apply_button: { primary: "[data-qa='vacancy-response-link-top']", fallbacks: [], required: true },
       cover_letter_textarea: { primary: "textarea[name='letter']", fallbacks: [], required: false }
     });
@@ -160,6 +182,7 @@ describe("automation hardening", () => {
         selectorRegistry: registry,
         snapshots,
         availableSelectorsByState: {
+          search_results: ["[data-qa='vacancy-serp__vacancy-title']"],
           job_details: ["[data-qa='vacancy-response-link-top']"],
           application_form: ["textarea[name='letter']", "[data-qa='vacancy-response-link-top']"],
           confirmation: []
@@ -232,6 +255,7 @@ describe("automation hardening", () => {
         selectorRegistry: registry,
         snapshots,
         availableSelectorsByState: {
+          search_results: ["[data-qa='vacancy-serp__vacancy-title']"],
           job_details: ["[data-qa='vacancy-response-link-top']"],
           application_form: ["textarea[name='letter']", "[data-qa='vacancy-response-link-top']"]
         },
@@ -239,6 +263,91 @@ describe("automation hardening", () => {
         stopBeforeActions: ["submit_application"]
       })
     ).toMatchObject({ status: "succeeded", reachedSubmitBoundary: true });
+  });
+
+  it("maps supported and fallback guard failures through deterministic flows", () => {
+    const runner = new DeterministicFlowRunner();
+    const guardFingerprint: FlowFingerprint = {
+      id: "guard_page",
+      urlPattern: "/guard",
+      titlePattern: "Guard",
+      requiredDomAnchors: [],
+      requiredTextAnchors: ["ready"],
+      captchaIndicators: ["captcha"]
+    };
+    const guardSnapshot: BrowserPageSnapshot = {
+      url: "https://hh.example/guard",
+      title: "Guard",
+      text: "ready",
+      domAnchors: []
+    };
+    const guardFlow = (guardName: string): FlowDefinition => ({
+      flowId: `guard_${guardName}`,
+      provider: "hh",
+      version: "v1",
+      selectorPackVersion: "v1",
+      entryState: "guard",
+      states: {
+        guard: {
+          stateId: "guard",
+          expectedFingerprint: "guard_page",
+          guards: [guardName],
+          actions: [],
+          transitions: {},
+          terminal: true
+        }
+      }
+    });
+
+    expect(
+      runner.run({
+        flow: guardFlow("resume_available"),
+        fingerprints: { guard_page: guardFingerprint },
+        selectorRegistry: new SelectorRegistry({}),
+        snapshots: { guard: guardSnapshot },
+        availableSelectorsByState: { guard: [] },
+        guardResults: { resume_available: false },
+        stopBeforeActions: []
+      })
+    ).toMatchObject({ status: "failed", errorCode: "resume_not_available" });
+    expect(
+      runner.run({
+        flow: guardFlow("unknown_guard"),
+        fingerprints: { guard_page: guardFingerprint },
+        selectorRegistry: new SelectorRegistry({}),
+        snapshots: { guard: guardSnapshot },
+        availableSelectorsByState: { guard: [] },
+        guardResults: { unknown_guard: false },
+        stopBeforeActions: []
+      })
+    ).toMatchObject({ status: "failed", errorCode: "form_schema_changed" });
+    expect(robotaDryRunFlow.states.unsupported_form_variant?.guards).toContain("supported_form_variant");
+
+    const noActionFlow = guardFlow("ready");
+    noActionFlow.states.guard!.guards = [];
+    noActionFlow.states.guard!.terminal = false;
+    expect(
+      runner.run({
+        flow: noActionFlow,
+        fingerprints: { guard_page: guardFingerprint },
+        selectorRegistry: new SelectorRegistry({}),
+        snapshots: { guard: guardSnapshot },
+        availableSelectorsByState: { guard: [] },
+        guardResults: {},
+        stopBeforeActions: []
+      })
+    ).toMatchObject({ status: "failed", errorCode: "form_schema_changed" });
+    expect(
+      runner.run({
+        flow: noActionFlow,
+        fingerprints: { guard_page: guardFingerprint },
+        selectorRegistry: new SelectorRegistry({}),
+        snapshots: { guard: { ...guardSnapshot, text: "captcha ready" } },
+        availableSelectorsByState: { guard: [] },
+        guardResults: {},
+        stopBeforeActions: []
+      })
+    ).toMatchObject({ status: "manual_review_required", errorCode: "captcha_required" });
   });
 
   it("detects CAPTCHA by URL and DOM anchors", () => {
@@ -262,6 +371,10 @@ describe("automation hardening", () => {
     expect(sessions.assertUsable(valid)).toEqual({ usable: true, errorCode: null });
     expect(sessions.assertUsable(expired)).toEqual({ usable: false, errorCode: "session_expired" });
     expect(sessions.assertUsable("missing")).toEqual({ usable: false, errorCode: "session_expired" });
+    const vault = new BrowserAuthStateVault();
+    const stored = vault.store({ providerId: "hh", accountId: "account", rawState: "{\"cookies\":[]}", secretRef: "vault/browser/hh" });
+    expect(stored.encryptedStateKey).toContain("browser-state://hh/account");
+    expect(vault.verify({ encryptedStateKey: stored.encryptedStateKey, expectedStateHash: stored.stateHash })).toBe(true);
   });
 
   it("fails canary when required provider metadata is missing", async () => {
@@ -269,6 +382,23 @@ describe("automation hardening", () => {
     expect(result.status).toBe("failed");
     expect(result.failures).toContain("selector_pack_missing");
     expect(result.failures).toContain("fingerprints_missing");
+    await expect(
+      new CanaryRunner().runProviderCanary("hh", {
+        selectorPack: { selectors: { apply_button: "[data-qa='apply']" } },
+        fingerprints: [{ id: "hh_job_page" }],
+        fixtureSnapshots: snapshots
+      })
+    ).resolves.toMatchObject({ status: "passed", failures: [], metrics: { fixtureSnapshotCount: 3 } });
+    await expect(
+      new CanaryRunner().runProviderCanary("hh", {
+        selectorPack: { selectors: { apply_button: "[data-qa='apply']" } },
+        fingerprints: [{ id: "hh_job_page" }],
+        fixtureSnapshots: { search_results: snapshots.search_results! }
+      })
+    ).resolves.toMatchObject({
+      status: "failed",
+      failures: expect.arrayContaining(["fixture_snapshot_missing:job_details", "fixture_snapshot_missing:application_form"])
+    });
     await expect(new CanaryRunner().runProviderCanary("telegram", {})).resolves.toMatchObject({ status: "passed" });
   });
 
@@ -280,5 +410,55 @@ describe("automation hardening", () => {
       recommendedAction: "Update fingerprint or selector pack after review"
     });
     expect(replay.replay("flow-2", null)).toMatchObject({ reproducedError: null, recommendedAction: "No action required" });
+    expect(
+      replay.replayFromArtifacts({
+        flowRunId: "flow-3",
+        manifest: {
+          flowRunId: "flow-3",
+          screenshotKeys: ["proof/flow-3/pre.png"],
+          domSnapshotKeys: ["proof/flow-3/before.html"],
+          traceKey: null,
+          createdAt: "2026-05-18T00:00:00.000Z"
+        },
+        errorCode: "selector_missing"
+      })
+    ).toMatchObject({ recommendedAction: "Inspect stored artifacts and update selector/fingerprint after review" });
+    expect(
+      replay.replayFromArtifacts({
+        flowRunId: "flow-4",
+        manifest: {
+          flowRunId: "flow-4",
+          screenshotKeys: [],
+          domSnapshotKeys: [],
+          traceKey: null,
+          createdAt: "2026-05-18T00:00:00.000Z"
+        },
+        errorCode: null
+      })
+    ).toMatchObject({ recommendedAction: "No action required" });
+    expect(mapBrowserErrorOutcome("captcha_required")).toBe("provider_disabled");
+    expect(mapBrowserErrorOutcome("network_error")).toBe("retry_scheduled");
+    expect(mapBrowserErrorOutcome("selector_missing")).toBe("dead_lettered");
+    expect(mapBrowserErrorOutcome("job_closed")).toBe("read_only_fallback");
+    expect(mapBrowserErrorOutcome("resume_not_available")).toBe("manual_review");
+    expect(mapBrowserErrorOutcome("page_locale_changed")).toBe("apply_failed");
+    expect(mapBrowserErrorOutcome(null)).toBe("apply_failed");
+  });
+
+  it("authorizes artifact access against the captured manifest", () => {
+    const ledger = new BrowserArtifactAccessLedger();
+    const manifest = {
+      flowRunId: "flow-1",
+      screenshotKeys: ["proof/flow-1/pre.png"],
+      domSnapshotKeys: ["proof/flow-1/before.html"],
+      traceKey: "proof/flow-1/trace.zip",
+      createdAt: "2026-05-18T00:00:00.000Z"
+    };
+    expect(ledger.authorize({ manifest, artifactKey: "proof/flow-1/pre.png", actor: "ops", purpose: "debug" })).toMatchObject({
+      allowed: true
+    });
+    expect(ledger.authorize({ manifest, artifactKey: "proof/flow-2/pre.png", actor: "ops", purpose: "debug" })).toMatchObject({
+      allowed: false
+    });
   });
 });

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "calendar-evidence-input/v1",
+  "calendarProvider": "google-calendar",
+  "checkedAt": "2026-05-18T00:00:00.000Z",
+  "readCheck": true,
+  "conflictCheck": true,
+  "writeCheck": true,
+  "operatorNote": "Example input shape only. Replace with a live read/conflict/write/delete smoke result from the approved calendar."
+}

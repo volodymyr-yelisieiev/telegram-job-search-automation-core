@@ -1,0 +1,98 @@
+{
+  "id": "backend-node-main",
+  "userId": "user-001",
+  "displayName": "Backend Node.js Profile",
+  "active": true,
+  "targetTitles": ["Backend Developer", "Node.js Developer", "TypeScript Backend Engineer"],
+  "primaryStack": ["Node.js", "TypeScript", "NestJS", "PostgreSQL"],
+  "secondaryStack": ["AWS", "Docker", "Redis", "GraphQL"],
+  "yearsOfExperience": 5,
+  "seniorityTargets": ["middle_plus", "senior"],
+  "languages": {
+    "communicationDefault": "en",
+    "allowed": ["en", "ru", "uk"]
+  },
+  "geography": {
+    "currentLocation": "Vienna, Austria",
+    "allowedWorkFormats": ["remote", "hybrid"],
+    "relocation": {
+      "allowed": false
+    }
+  },
+  "compensation": {
+    "minMonthlyEur": 4000,
+    "targetMonthlyEur": 5500,
+    "discloseMode": "range_only"
+  },
+  "employment": {
+    "types": ["full_time", "contract"]
+  },
+  "resumes": [
+    {
+      "resumeId": "resume_backend_node_en_v4",
+      "filename": "backend-node-en-v4.pdf",
+      "language": "en",
+      "targetStack": ["Node.js", "TypeScript", "NestJS", "PostgreSQL"],
+      "targetSeniority": ["middle_plus", "senior"],
+      "allowedProviders": ["hh", "robota", "telegram"],
+      "objectStorageKey": "resumes/backend-node-en-v4.pdf",
+      "version": "v4",
+      "active": true,
+      "checksum": "fixture-checksum-backend-node-en-v4",
+      "lastReviewedAt": "2026-05-16T00:00:00.000Z"
+    }
+  ],
+  "facts": {
+    "current_location": {
+      "value": "Vienna, Austria",
+      "disclosure": "allowed",
+      "categories": ["location_reply", "scheduling_reply"]
+    },
+    "salary_expectation": {
+      "value": {
+        "min": 4000,
+        "max": 5500,
+        "currency": "EUR",
+        "period": "month"
+      },
+      "disclosure": "range_only",
+      "categories": ["salary_range_reply"]
+    }
+  },
+  "blacklists": {
+    "companies": ["Scam Recruiting LLC"],
+    "keywords": ["unpaid", "intern", "junior only"]
+  },
+  "whitelists": {
+    "companies": []
+  },
+  "strategies": {
+    "default": "balanced",
+    "allowed": ["aggressive", "balanced", "selective"]
+  },
+  "availability": {
+    "timezone": "Europe/Vienna",
+    "defaultWindows": {
+      "monday": ["10:00-13:00", "15:00-18:00"],
+      "tuesday": ["10:00-13:00", "15:00-18:00"],
+      "wednesday": ["10:00-13:00"],
+      "thursday": ["15:00-18:00"],
+      "friday": ["10:00-13:00"]
+    },
+    "bufferMinutesBefore": 15,
+    "bufferMinutesAfter": 15,
+    "maxInterviewsPerDay": 2,
+    "minNoticeHours": 24
+  },
+  "userConsent": {
+    "autoApply": false,
+    "autoReply": false,
+    "interviewScheduling": false
+  },
+  "rateLimits": {
+    "applicationsPerDay": 80,
+    "applicationsPerHour": 10,
+    "maxPerCompanyPerDay": 1,
+    "maxPerCompanyPerWeek": 3
+  }
+}

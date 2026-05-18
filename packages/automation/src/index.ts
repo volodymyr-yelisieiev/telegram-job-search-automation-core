@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { ErrorCode, ProofPack, ReplayReport } from "@job-search/domain";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import type { BrowserContext } from "playwright";
+import { stableHash, type ErrorCode, type ProofPack, type ReplayReport } from "@job-search/domain";
 import { createLogger, type MetricsRegistry } from "@job-search/observability";
 
 export interface BrowserPageSnapshot {
@@ -64,6 +67,16 @@ export interface FlowRunResult {
   proofPack: ProofPack;
   errorCode: ErrorCode | null;
 }
+
+export interface BrowserArtifactManifest {
+  flowRunId: string;
+  screenshotKeys: string[];
+  domSnapshotKeys: string[];
+  traceKey: string | null;
+  createdAt: string;
+}
+
+export type BrowserErrorOutcome = "retry_scheduled" | "provider_disabled" | "apply_failed" | "read_only_fallback" | "dead_lettered" | "manual_review";
 
 export class FingerprintEngine {
   matches(snapshot: BrowserPageSnapshot, fingerprint: FlowFingerprint): { matched: boolean; errorCode: ErrorCode | null } {
@@ -288,11 +301,99 @@ export class BrowserSessionManager {
   }
 }
 
+export class BrowserAuthStateVault {
+  store(input: { providerId: string; accountId: string; rawState: string; secretRef: string }): { encryptedStateKey: string; stateHash: string } {
+    const stateHash = stableHash(input.rawState);
+    return {
+      encryptedStateKey: `browser-state://${input.providerId}/${input.accountId}/${stateHash}?secret=${stableHash(input.secretRef)}`,
+      stateHash
+    };
+  }
+
+  verify(input: { encryptedStateKey: string; expectedStateHash: string }): boolean {
+    return input.encryptedStateKey.includes(input.expectedStateHash);
+  }
+}
+
+/* v8 ignore start -- real browser context creation requires installed Playwright browsers and is covered by staging smoke. */
+export class PlaywrightRuntimeFactory {
+  async createContext(input: {
+    providerId: string;
+    accountId: string;
+    environment: "local" | "dev" | "staging" | "production";
+    headed?: boolean;
+    debug?: boolean;
+    storageStatePath?: string | null;
+  }): Promise<{ context: BrowserContext; close: () => Promise<void> }> {
+    if (input.environment === "production" && (input.headed || input.debug)) {
+      throw new Error("Headed/debug browser mode is not allowed in production without audited ops override");
+    }
+    const { chromium } = await import("playwright");
+    const browser = await chromium.launch({ headless: !input.headed });
+    const context = await browser.newContext({
+      ...(input.storageStatePath ? { storageState: input.storageStatePath } : {})
+    });
+    return {
+      context,
+      close: async () => {
+        await context.close();
+        await browser.close();
+      }
+    };
+  }
+}
+/* v8 ignore stop */
+
+export class BrowserArtifactCapture {
+  captureFixtureArtifacts(input: { flowRunId: string; root: string; html: string; screenshotBytes?: Uint8Array; traceBytes?: Uint8Array }): BrowserArtifactManifest {
+    const base = join(input.root, input.flowRunId);
+    mkdirSync(base, { recursive: true });
+    const screenshotKey = join(base, "pre.png");
+    const domKey = join(base, "before.html");
+    const traceKey = input.traceBytes ? join(base, "trace.zip") : null;
+    writeFileSync(screenshotKey, input.screenshotBytes ?? new Uint8Array([137, 80, 78, 71]));
+    writeFileSync(domKey, input.html);
+    if (traceKey) {
+      writeFileSync(traceKey, input.traceBytes!);
+    }
+    return {
+      flowRunId: input.flowRunId,
+      screenshotKeys: [screenshotKey],
+      domSnapshotKeys: [domKey],
+      traceKey,
+      createdAt: new Date().toISOString()
+    };
+  }
+}
+
+export class BrowserArtifactAccessLedger {
+  authorize(input: { manifest: BrowserArtifactManifest; artifactKey: string; actor: string; purpose: string }): {
+    allowed: boolean;
+    audit: { artifactKey: string; actor: string; purpose: string; manifestFlowRunId: string; accessHash: string };
+  } {
+    const allowed = [
+      ...input.manifest.screenshotKeys,
+      ...input.manifest.domSnapshotKeys,
+      ...(input.manifest.traceKey ? [input.manifest.traceKey] : [])
+    ].includes(input.artifactKey);
+    return {
+      allowed,
+      audit: {
+        artifactKey: input.artifactKey,
+        actor: input.actor,
+        purpose: input.purpose,
+        manifestFlowRunId: input.manifest.flowRunId,
+        accessHash: stableHash(`${input.artifactKey}:${input.actor}:${input.purpose}`)
+      }
+    };
+  }
+}
+
 export class CanaryRunner {
   async runProviderCanary(
     providerId: string,
-    input: { selectorPack?: { selectors: Record<string, unknown> }; fingerprints?: unknown[] } = {}
-  ): Promise<{ providerId: string; status: "passed" | "failed"; checks: string[]; failures: string[] }> {
+    input: { selectorPack?: { selectors: Record<string, unknown> }; fingerprints?: Array<{ id?: string }>; fixtureSnapshots?: Record<string, BrowserPageSnapshot> } = {}
+  ): Promise<{ providerId: string; status: "passed" | "failed"; checks: string[]; failures: string[]; metrics: Record<string, number> }> {
     const checks = ["auth_canary", "search_results_canary", "job_page_canary", "apply_form_without_submit"];
     const failures: string[] = [];
     if (providerId !== "telegram") {
@@ -302,14 +403,46 @@ export class CanaryRunner {
       if (!input.fingerprints || input.fingerprints.length === 0) {
         failures.push("fingerprints_missing");
       }
+      for (const required of ["search_results", "job_details", "application_form"]) {
+        if (input.fixtureSnapshots && !input.fixtureSnapshots[required]) {
+          failures.push(`fixture_snapshot_missing:${required}`);
+        }
+      }
     }
     return {
       providerId,
       status: failures.length === 0 ? "passed" : "failed",
       checks,
-      failures
+      failures,
+      metrics: {
+        selectorCount: Object.keys(input.selectorPack?.selectors ?? {}).length,
+        fingerprintCount: input.fingerprints?.length ?? 0,
+        fixtureSnapshotCount: Object.keys(input.fixtureSnapshots ?? {}).length
+      }
     };
   }
+}
+
+export function mapBrowserErrorOutcome(errorCode: ErrorCode | null): BrowserErrorOutcome {
+  if (!errorCode) {
+    return "apply_failed";
+  }
+  if (["navigation_timeout", "network_error", "provider_unavailable", "provider_rate_limited"].includes(errorCode)) {
+    return "retry_scheduled";
+  }
+  if (["captcha_required", "anti_automation_detected", "provider_terms_block", "account_locked", "auth_expired", "login_required", "session_expired"].includes(errorCode)) {
+    return "provider_disabled";
+  }
+  if (["selector_missing", "selector_ambiguous", "page_fingerprint_mismatch", "form_schema_changed", "confirmation_missing"].includes(errorCode)) {
+    return "dead_lettered";
+  }
+  if (["job_already_applied", "job_closed", "job_not_matching_policy", "salary_policy_conflict", "location_policy_conflict", "duplicate_company_thread_detected"].includes(errorCode)) {
+    return "read_only_fallback";
+  }
+  if (["facts_matrix_violation", "cover_letter_policy_failed", "resume_not_available"].includes(errorCode)) {
+    return "manual_review";
+  }
+  return "apply_failed";
 }
 
 export class ReplayService {
@@ -322,6 +455,16 @@ export class ReplayService {
       recommendedAction: errorCode === "page_fingerprint_mismatch" ? "Update fingerprint or selector pack after review" : "No action required"
     };
   }
+
+  replayFromArtifacts(input: { flowRunId: string; manifest: BrowserArtifactManifest; errorCode: ErrorCode | null }): ReplayReport {
+    return {
+      flowRunId: input.flowRunId,
+      status: "replayed",
+      summary: `Replay loaded ${input.manifest.screenshotKeys.length} screenshots and ${input.manifest.domSnapshotKeys.length} DOM snapshots`,
+      reproducedError: input.errorCode,
+      recommendedAction: input.errorCode ? "Inspect stored artifacts and update selector/fingerprint after review" : "No action required"
+    };
+  }
 }
 
 export const hhDryRunFlow: FlowDefinition = {
@@ -329,8 +472,17 @@ export const hhDryRunFlow: FlowDefinition = {
   provider: "hh",
   version: "2026-05-16-v1",
   selectorPackVersion: "2026-05-16-v1",
-  entryState: "job_details",
+  entryState: "search_results",
   states: {
+    search_results: {
+      stateId: "search_results",
+      expectedFingerprint: "hh_results_page",
+      guards: ["vacancy_is_active"],
+      actions: [{ actionId: "open_job", selectorKey: "job_card" }],
+      transitions: {
+        open_job: "job_details"
+      }
+    },
     job_details: {
       stateId: "job_details",
       expectedFingerprint: "hh_job_page",
@@ -350,14 +502,89 @@ export const hhDryRunFlow: FlowDefinition = {
         { actionId: "submit_application", selectorKey: "apply_button" }
       ],
       transitions: {
-        submit_application: "confirmation"
+        submit_application: "submit_boundary"
       }
     },
-    confirmation: {
-      stateId: "confirmation",
-      expectedFingerprint: "hh_confirmation",
+    submit_boundary: {
+      stateId: "submit_boundary",
+      expectedFingerprint: "hh_apply_form",
       guards: [],
-      actions: [{ actionId: "capture_confirmation" }],
+      actions: [{ actionId: "dry_run_complete" }],
+      transitions: {
+        dry_run_complete: "dry_run_complete"
+      }
+    },
+    dry_run_complete: {
+      stateId: "dry_run_complete",
+      expectedFingerprint: "hh_apply_form",
+      guards: [],
+      actions: [],
+      transitions: {},
+      terminal: true
+    }
+  }
+};
+
+export const robotaDryRunFlow: FlowDefinition = {
+  flowId: "robota_auto_apply_v1",
+  provider: "robota",
+  version: "2026-05-18-v1",
+  selectorPackVersion: "2026-05-16-v1",
+  entryState: "search_results",
+  states: {
+    search_results: {
+      stateId: "search_results",
+      expectedFingerprint: "robota_search_results",
+      guards: ["vacancy_is_active"],
+      actions: [{ actionId: "open_job", selectorKey: "job_card" }],
+      transitions: {
+        open_job: "job_details"
+      }
+    },
+    job_details: {
+      stateId: "job_details",
+      expectedFingerprint: "robota_job_page",
+      guards: ["not_already_applied", "vacancy_is_active", "apply_button_exists"],
+      actions: [{ actionId: "click_apply", selectorKey: "apply_button" }],
+      transitions: {
+        click_apply: "application_form"
+      }
+    },
+    application_form: {
+      stateId: "application_form",
+      expectedFingerprint: "robota_apply_form",
+      guards: ["resume_available", "cover_letter_valid", "no_captcha"],
+      actions: [
+        { actionId: "select_resume" },
+        { actionId: "fill_cover_letter" },
+        { actionId: "submit_application", selectorKey: "apply_button" }
+      ],
+      transitions: {
+        submit_application: "submit_boundary"
+      }
+    },
+    unsupported_form_variant: {
+      stateId: "unsupported_form_variant",
+      expectedFingerprint: "robota_apply_form",
+      guards: ["supported_form_variant"],
+      actions: [],
+      transitions: {},
+      terminal: true
+    },
+    submit_boundary: {
+      stateId: "submit_boundary",
+      expectedFingerprint: "robota_apply_form",
+      guards: [],
+      actions: [{ actionId: "dry_run_complete" }],
+      transitions: {
+        dry_run_complete: "dry_run_complete"
+      }
+    },
+    dry_run_complete: {
+      stateId: "dry_run_complete",
+      expectedFingerprint: "robota_apply_form",
+      guards: [],
+      actions: [],
       transitions: {},
       terminal: true
     }
@@ -371,7 +598,8 @@ function guardFailureCode(guardName: string): ErrorCode {
     apply_button_exists: "selector_missing",
     resume_available: "resume_not_available",
     cover_letter_valid: "cover_letter_policy_failed",
-    no_captcha: "captcha_required"
+    no_captcha: "captcha_required",
+    supported_form_variant: "form_schema_changed"
   };
   return guardErrors[guardName] ?? "form_schema_changed";
 }

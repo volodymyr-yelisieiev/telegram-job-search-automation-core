@@ -1,0 +1,159 @@
+{
+  "records": [
+    {
+      "evidenceId": "cred-all",
+      "evidenceType": "live_credentials_configured",
+      "providerId": null,
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "approved-secrets-inventory",
+      "metadata": {
+        "template": true,
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "secretReferenceIds": [
+          "vault://job-search/hh/browser-session",
+          "vault://job-search/robota/browser-session",
+          "vault://job-search/telegram/bot"
+        ],
+        "coveredProviderIds": ["hh", "robota", "telegram"],
+        "telegramBot": true
+      }
+    },
+    {
+      "evidenceId": "secrets-vault",
+      "evidenceType": "external_secrets_backend",
+      "providerId": null,
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "vault-access-probe",
+      "metadata": {
+        "template": true,
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "backend": "vault",
+        "accessCheck": true
+      }
+    },
+    {
+      "evidenceId": "canary-hh",
+      "evidenceType": "live_canary_passed",
+      "providerId": "hh",
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "live-provider-canary",
+      "metadata": {
+        "template": true,
+        "canaryRunId": "canary-hh-2026-05-18",
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "result": "passed"
+      }
+    },
+    {
+      "evidenceId": "canary-robota",
+      "evidenceType": "live_canary_passed",
+      "providerId": "robota",
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "live-provider-canary",
+      "metadata": {
+        "template": true,
+        "canaryRunId": "canary-robota-2026-05-18",
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "result": "passed"
+      }
+    },
+    {
+      "evidenceId": "canary-telegram",
+      "evidenceType": "live_canary_passed",
+      "providerId": "telegram",
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "live-provider-canary",
+      "metadata": {
+        "template": true,
+        "canaryRunId": "canary-telegram-2026-05-18",
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "result": "passed"
+      }
+    },
+    {
+      "evidenceId": "provider-submit-live",
+      "evidenceType": "provider_submit_proof_ready",
+      "providerId": "hh",
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "provider-submit-proof",
+      "metadata": {
+        "template": true,
+        "applicationId": "app-live-2026-05-18-001",
+        "proofId": "provider-submit-proof-2026-05-18-001",
+        "action": "send_application",
+        "transport": "provider",
+        "idempotencyKeyHash": "sha256:submit-idempotency-proof-hash",
+        "draftHash": "sha256:approved-draft-hash",
+        "submitStatus": "submitted",
+        "submittedAt": "2026-05-18T00:00:00.000Z"
+      }
+    },
+    {
+      "evidenceId": "calendar-live",
+      "evidenceType": "calendar_integration_ready",
+      "providerId": null,
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "calendar-smoke",
+      "metadata": {
+        "template": true,
+        "calendarProvider": "google-calendar",
+        "checkedAt": "2026-05-18T00:00:00.000Z",
+        "readCheck": true,
+        "conflictCheck": true,
+        "writeCheck": true
+      }
+    },
+    {
+      "evidenceId": "soak-live",
+      "evidenceType": "seven_day_soak_passed",
+      "providerId": null,
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-06-17T00:00:00.000Z",
+      "source": "production-soak",
+      "metadata": {
+        "template": true,
+        "startedAt": "2026-05-10T00:00:00.000Z",
+        "completedAt": "2026-05-18T00:00:00.000Z",
+        "duplicateApplicationCount": 0,
+        "proofCoveragePercent": 100,
+        "stateLossDetected": false,
+        "unsupportedFactCount": 0,
+        "incidentDrillPassed": true,
+        "rollbackDrillPassed": true
+      }
+    },
+    {
+      "evidenceId": "dispatch-live",
+      "evidenceType": "outbound_dispatch_proof_ready",
+      "providerId": null,
+      "status": "passed",
+      "observedAt": "2026-05-18T00:00:00.000Z",
+      "expiresAt": "2026-05-19T00:00:00.000Z",
+      "source": "outbound-dispatch-proof",
+      "metadata": {
+        "template": true,
+        "proofId": "proof-live-2026-05-18-001",
+        "transport": "telegram",
+        "idempotencyKeyHash": "sha256:idempotency-proof-hash",
+        "textHash": "sha256:outbound-text-hash",
+        "deliveryStatus": "sent",
+        "deliveredAt": "2026-05-18T00:00:00.000Z"
+      }
+    }
+  ]
+}

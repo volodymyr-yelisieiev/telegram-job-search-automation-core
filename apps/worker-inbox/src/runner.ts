@@ -1,10 +1,42 @@
 import type { RuntimeConfig } from "@job-search/config";
-import type { InMemoryDatabase } from "@job-search/db";
+import { executeQueueTask, queuePolicies, type InMemoryDatabase, type QueueAdapter, type TaskRunStore } from "@job-search/db";
 import { ConversationEngine } from "@job-search/domain";
 import { LlmGateway } from "@job-search/llm";
 import type { ProviderRegistry } from "@job-search/providers";
 
 export async function runInboxWorker(input: {
+  config: RuntimeConfig;
+  db: InMemoryDatabase;
+  registry: ProviderRegistry;
+  llm?: LlmGateway;
+  queue?: QueueAdapter;
+  taskRunStore?: TaskRunStore;
+}): Promise<{ classified: number; manualReviewCreated: number; queueRuntime?: { taskRunId: string; status: string; errorCode: string | null } }> {
+  if (input.queue && input.taskRunStore) {
+    const task = await input.queue.enqueue(
+      "inbox_sync_queue",
+      { accountId: "fixture-account" },
+      { idempotencyKey: "inbox_sync:fixture-account", deduplicationKey: "fixture-account" }
+    );
+    const execution = await executeQueueTask({
+      taskRunStore: input.taskRunStore,
+      task,
+      noRetryErrorCodes: queuePolicies.inbox_sync_queue.noRetryErrorCodes,
+      handler: async () => processInbox(input)
+    });
+    return {
+      ...(execution.result ?? { classified: 0, manualReviewCreated: 0 }),
+      queueRuntime: {
+        taskRunId: task.id,
+        status: execution.status,
+        errorCode: execution.errorCode
+      }
+    };
+  }
+  return processInbox(input);
+}
+
+async function processInbox(input: {
   config: RuntimeConfig;
   db: InMemoryDatabase;
   registry: ProviderRegistry;
@@ -19,10 +51,15 @@ export async function runInboxWorker(input: {
     if (!provider.capabilities.inboxSync) {
       continue;
     }
+    const health = await provider.healthcheck({ now: new Date(), environment: input.config.app.environment });
+    input.db.updateProviderHealth(health);
+    if (health.status === "blocked" || health.status === "deprecated") {
+      continue;
+    }
     const messages = await provider.syncInbox("fixture-account");
     for (const message of messages) {
       const persisted = input.db.upsertInboundMessage(message);
-      if (!persisted.created) {
+      if (!persisted.created && input.db.messageClassifications.has(persisted.record.id)) {
         continue;
       }
       const classification = conversation.classify(message.text, input.config.app.timezone);

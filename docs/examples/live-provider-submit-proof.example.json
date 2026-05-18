@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "provider-submit-evidence-input/v1",
+  "providerId": "hh",
+  "applicationId": "app-live-2026-05-18-001",
+  "proofId": "provider-submit-proof-2026-05-18-001",
+  "action": "send_application",
+  "transport": "provider",
+  "idempotencyKeyHash": "sha256:replace-with-approved-idempotency-hash",
+  "draftHash": "sha256:replace-with-approved-draft-hash",
+  "submitStatus": "submitted",
+  "submittedAt": "2026-05-18T00:00:00.000Z",
+  "rawApplicationPayloadPresent": false,
+  "operatorNote": "Example input shape only. Keep raw resume, cover letter, and provider payload contents out of this file."
+}

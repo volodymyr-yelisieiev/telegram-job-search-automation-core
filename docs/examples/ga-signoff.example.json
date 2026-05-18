@@ -1,0 +1,44 @@
+{
+  "checklistVersion": "ga-signoff/v1",
+  "p0P1Closed": true,
+  "p2P3HaveOwners": true,
+  "runbookDrillsReviewed": true,
+  "residualRiskAccepted": true,
+  "postGaMaintenancePlanReady": true,
+  "evidenceRefs": {
+    "issueRegister": "example://replace-with-real-issue-register",
+    "runbookDrillReport": "example://replace-with-real-runbook-drill-report",
+    "residualRiskRecord": "example://replace-with-real-residual-risk-record",
+    "maintenancePlan": "example://replace-with-real-post-ga-maintenance-plan"
+  },
+  "signers": [
+    {
+      "role": "product_owner",
+      "name": "Example Product Owner",
+      "date": "2026-05-18T00:00:00.000Z",
+      "decision": "approved",
+      "notes": "Example only; replace with the real GA decision before release."
+    },
+    {
+      "role": "engineering",
+      "name": "Example Engineering Lead",
+      "date": "2026-05-18T00:00:00.000Z",
+      "decision": "approved",
+      "notes": "Example only; replace with the real GA decision before release."
+    },
+    {
+      "role": "operations",
+      "name": "Example Operations Lead",
+      "date": "2026-05-18T00:00:00.000Z",
+      "decision": "approved",
+      "notes": "Example only; replace with the real GA decision before release."
+    },
+    {
+      "role": "security",
+      "name": "Example Security Lead",
+      "date": "2026-05-18T00:00:00.000Z",
+      "decision": "approved",
+      "notes": "Example only; replace with the real GA decision before release."
+    }
+  ]
+}

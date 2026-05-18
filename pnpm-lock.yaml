@@ -208,6 +208,21 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
 
+  apps/worker-reply:
+    dependencies:
+      '@job-search/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@job-search/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@job-search/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@job-search/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+
   packages/automation:
     dependencies:
       '@job-search/domain':
@@ -243,6 +258,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.20.0
+      zod:
+        specifier: ^4.1.13
+        version: 4.4.3
 
   packages/domain:
     dependencies:

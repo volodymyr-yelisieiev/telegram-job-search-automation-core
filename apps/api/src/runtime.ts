@@ -2,14 +2,14 @@ import {
   buildDedupKey,
   CoverLetterEngine,
   DedupEngine,
-  makeApplicationDraftVariantKey,
+  makeApplicationDraftContentHash,
   makeApplicationIdempotencyKey,
   PolicyEngine,
   ResumeRouter,
   ScoringEngine
 } from "@job-search/domain";
 import type { RuntimeConfig } from "@job-search/config";
-import type { InMemoryDatabase } from "@job-search/db";
+import { evaluateApplicationRateLimits, PostgresRuntimeDatabase, type InMemoryDatabase } from "@job-search/db";
 import type { ProviderRegistry } from "@job-search/providers";
 
 export async function runLocalPipeline(input: {
@@ -17,6 +17,9 @@ export async function runLocalPipeline(input: {
   registry: ProviderRegistry;
   config: RuntimeConfig;
 }): Promise<{ normalized: number; shortlisted: number; prepared: number; manualReview: number }> {
+  if (!(input.db instanceof PostgresRuntimeDatabase) && input.db.systemMode === "review_first" && input.config.app.mode !== "review_first") {
+    input.db.systemMode = input.config.app.mode;
+  }
   const scoring = new ScoringEngine();
   const dedup = new DedupEngine();
   const router = new ResumeRouter();
@@ -30,6 +33,21 @@ export async function runLocalPipeline(input: {
   for (const provider of input.registry.list()) {
     const health = await provider.healthcheck({ now: new Date(), environment: input.config.app.environment });
     input.db.updateProviderHealth(health);
+    if (health.status === "blocked" || health.status === "deprecated") {
+      input.db.recordSearchRun({
+        providerId: provider.providerId,
+        searchProfileId: input.db.searchProfile.searchProfileId,
+        query: "",
+        filters: {},
+        rawCount: 0,
+        normalizedCount: 0,
+        rejectedCount: 0,
+        shortlistedCount: 0,
+        stopCondition: `provider_${health.status}`,
+        errors: [health.message]
+      });
+      continue;
+    }
 
     const plan = await provider.compileSearchPlan(input.db.searchProfile);
     const refs = await provider.discoverJobs(plan);
@@ -71,6 +89,10 @@ export async function runLocalPipeline(input: {
       shortlisted += 1;
       runStart.shortlistedCount += 1;
 
+      if (input.db.systemMode === "read_only") {
+        continue;
+      }
+
       const resumeRoute = router.select(job, input.db.candidateProfile);
       const coverLetter = coverLetters.generate(job, input.db.candidateProfile, resumeRoute);
       if (!resumeRoute.resumeId || coverLetter.validationStatus !== "passed") {
@@ -105,9 +127,17 @@ export async function runLocalPipeline(input: {
         entityId: draft.draftId,
         actor: "application-orchestrator"
       });
+      const rateLimit = evaluateApplicationRateLimits({
+        profile: input.db.candidateProfile,
+        applications: input.db.applications.values(),
+        jobs: input.db.jobs.values(),
+        job,
+        providerId: provider.providerId,
+        includePrepared: true
+      });
       const policyResult = policy.check({
         action: "send_application",
-        mode: input.config.app.mode,
+        mode: input.db.systemMode,
         providerStatus: health.status,
         candidateProfile: input.db.candidateProfile,
         score,
@@ -116,7 +146,7 @@ export async function runLocalPipeline(input: {
         proofReady: Boolean(proofPack.auditEventId),
         validationPassed: dryRun.status === "passed" && coverLetter.validationStatus === "passed",
         irreversibleActionsEnabled: input.config.app.irreversibleActionsEnabled,
-        rateLimitAvailable: true
+        rateLimitAvailable: rateLimit.allowed
       });
       input.db.recordPolicyCheck({
         entityType: "application_draft",
@@ -131,7 +161,12 @@ export async function runLocalPipeline(input: {
             ? "manual_review_required"
             : "application_prepared";
 
-      input.db.createApplication({
+      const applicationIdempotencyKey = makeApplicationIdempotencyKey({
+        userId: input.db.candidateProfile.userId,
+        provider: provider.providerId,
+        externalJobId: job.externalId
+      });
+      const application = input.db.createApplication({
         userId: input.db.candidateProfile.userId,
         jobId: job.id,
         providerId: provider.providerId,
@@ -140,18 +175,17 @@ export async function runLocalPipeline(input: {
         resumeId: resumeRoute.resumeId,
         coverLetterId: draft.coverLetterId,
         status: applicationStatus,
-        idempotencyKey: makeApplicationIdempotencyKey({
-          userId: input.db.candidateProfile.userId,
-          provider: provider.providerId,
-          externalJobId: job.externalId
-        }),
+        idempotencyKey: applicationIdempotencyKey,
         dedupKey: buildDedupKey(job).providerJobKey,
-        draftVariantKey: makeApplicationDraftVariantKey({
-          userId: input.db.candidateProfile.userId,
-          provider: provider.providerId,
-          externalJobId: job.externalId,
-          resumeId: resumeRoute.resumeId,
-          profileId: input.db.candidateProfile.id
+        draftVariantKey: makeApplicationDraftContentHash({
+          jobId: draft.jobId,
+          providerId: draft.providerId,
+          externalJobId: draft.externalJobId,
+          candidateProfileId: draft.candidateProfileId,
+          resumeId: draft.resumeId,
+          coverLetterId: draft.coverLetterId,
+          coverLetterText: draft.coverLetterText,
+          idempotencyKey: applicationIdempotencyKey
         }),
         proofPackId: proofPack.proofPackId,
         policyDecision: policyResult.decision,
@@ -160,19 +194,32 @@ export async function runLocalPipeline(input: {
       prepared += 1;
 
       if (policyResult.requiresUserApproval) {
-        input.db.createManualReview({
+        const review = input.db.createManualReview({
           userId: input.db.candidateProfile.userId,
           entityType: "application",
-          entityId: job.id,
+          entityId: application.id,
           reasonCode: "review_first_requires_approval",
           severity: "medium",
           recommendedAction: "Approve or reject prepared application draft"
+        });
+        input.db.createApprovalRequest({
+          userId: input.db.candidateProfile.userId,
+          entityType: "application",
+          entityId: application.id,
+          requestedAction: "send_application",
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          policyDecisionId: null,
+          draftHash: application.draftVariantKey ?? null,
+          manualReviewId: review.id
         });
         manualReview += 1;
       }
     }
     input.db.recordSearchRun({
       providerId: provider.providerId,
+      searchProfileId: plan.searchProfileId,
+      query: plan.query,
+      filters: plan.filters,
       rawCount: runStart.rawCount,
       normalizedCount: runStart.normalizedCount,
       rejectedCount: runStart.rejectedCount,
@@ -182,5 +229,12 @@ export async function runLocalPipeline(input: {
     });
   }
 
+  await flushRuntimePersistence(input.db);
   return { normalized, shortlisted, prepared, manualReview };
+}
+
+async function flushRuntimePersistence(db: InMemoryDatabase): Promise<void> {
+  if ("flushPersistence" in db && typeof db.flushPersistence === "function") {
+    await db.flushPersistence();
+  }
 }

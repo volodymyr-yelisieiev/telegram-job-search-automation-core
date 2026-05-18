@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "canary-evidence-input/v1",
+  "canaryResults": [
+    {
+      "providerId": "hh",
+      "status": "passed",
+      "canaryRunId": "hh-live-canary-2026-05-18-001",
+      "checkedAt": "2026-05-18T00:00:00.000Z",
+      "checks": ["homepage_reachable", "search_results_parseable", "selector_fingerprint_current"],
+      "metrics": {
+        "latencyMs": 620,
+        "normalizedJobs": 12
+      }
+    },
+    {
+      "providerId": "robota",
+      "status": "passed",
+      "canaryRunId": "robota-live-canary-2026-05-18-001",
+      "checkedAt": "2026-05-18T00:00:00.000Z",
+      "checks": ["homepage_reachable", "search_results_parseable", "selector_fingerprint_current"],
+      "metrics": {
+        "latencyMs": 710,
+        "normalizedJobs": 9
+      }
+    },
+    {
+      "providerId": "telegram",
+      "status": "passed",
+      "canaryRunId": "telegram-live-canary-2026-05-18-001",
+      "checkedAt": "2026-05-18T00:00:00.000Z",
+      "checks": ["bot_get_me", "allowed_user_guard_configured"],
+      "metrics": {
+        "latencyMs": 180
+      }
+    }
+  ],
+  "operatorNote": "Example input shape only. Replace with read-only live canary output captured from the approved live workflow."
+}

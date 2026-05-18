@@ -6,6 +6,7 @@ import {
   renderJobCard,
   renderPipeline,
   renderProfile,
+  renderProfileReadiness,
   renderStatus,
   supportedTelegramCommands
 } from "@job-search/telegram-ui";
@@ -52,11 +53,34 @@ describe("telegram UI renderers", () => {
         latestAuditEvents: []
       })
     ).toContain("No provider health checks yet");
+    expect(
+      renderStatus({
+        mode: "review_first",
+        jobs: 1,
+        applications: 0,
+        manualReviewItems: 0,
+        providerHealth: [{ providerId: "hh", status: "stable", checkedAt: "2026-05-18T00:00:00.000Z", latencyMs: 1, message: "ok" }],
+        latestAuditEvents: []
+      })
+    ).toContain("hh: stable");
 
     expect(renderPipeline({ discovered: 1, normalized: 1, shortlisted: 1, rejected: 0, prepared: 0, applied: 0, interviews: 0 })).toContain(
       "Shortlisted: 1"
     );
     expect(renderJobCard(job, null)).toContain("not scored");
+    expect(
+      renderJobCard(job, {
+        score: 90,
+        interviewLikelihoodScore: 90,
+        decision: "shortlisted",
+        reasons: ["strong match"],
+        risks: [],
+        hardRejections: []
+      })
+    ).toContain("Shortlisted");
+    expect(renderJobCard({ ...job, companyName: null, compensationMin: 4000, compensationMax: 5500, compensationCurrency: "EUR", compensationPeriod: "month" }, null)).toContain(
+      "Company: Unknown"
+    );
     expect(
       renderApplicationCard({
         title: job.title,
@@ -68,10 +92,41 @@ describe("telegram UI renderers", () => {
         proofAvailable: false
       })
     ).toContain("Proof: missing");
+    expect(
+      renderApplicationCard({
+        title: job.title,
+        company: null,
+        provider: "hh",
+        score: 84,
+        resumeId: "resume",
+        status: "applied",
+        proofAvailable: true
+      })
+    ).toContain("Proof: available");
     expect(renderDigest({ responses: 1, manualReviewItems: 2, interviews: 0, providerIssues: ["hh"], pipelineStats: "Pipeline" })).toContain(
       "Provider issues: hh"
     );
     expect(renderProfile(createDefaultCandidateProfile())).toContain("Backend Node.js Profile");
+    expect(
+      renderProfileReadiness({
+        profileId: "profile-1",
+        mode: "read_only",
+        ready: true,
+        blockers: [],
+        warnings: [],
+        missingFields: []
+      })
+    ).toContain("Missing: none");
+    expect(
+      renderProfileReadiness({
+        profileId: "profile-1",
+        mode: "controlled_auto_apply",
+        ready: false,
+        blockers: ["consent missing"],
+        warnings: ["review salary"],
+        missingFields: ["userConsent.autoApply"]
+      })
+    ).toContain("Blockers: consent missing");
     expect(supportedTelegramCommands).toContain("/status");
   });
 

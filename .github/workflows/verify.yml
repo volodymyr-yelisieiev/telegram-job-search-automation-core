@@ -1,0 +1,43 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: job_search
+          POSTGRES_PASSWORD: job_search
+          POSTGRES_DB: job_search
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U job_search -d job_search"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6380:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify
+        env:
+          DATABASE_URL: postgres://job_search:job_search@127.0.0.1:5432/job_search
+          REDIS_URL: redis://127.0.0.1:6380

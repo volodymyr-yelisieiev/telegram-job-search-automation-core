@@ -1,4 +1,4 @@
-# ADR-002: Local-Safe First Implementation
+# ADR-006: Local-Safe First Implementation
 
 ## Decision
 

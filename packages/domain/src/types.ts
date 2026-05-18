@@ -174,6 +174,9 @@ export interface ScoreResult {
   score: number;
   interviewLikelihoodScore: number;
   decision: "rejected" | "shortlisted";
+  strategy?: "aggressive" | "balanced" | "selective";
+  scoreProfileVersion?: string;
+  factorWeights?: Record<string, number>;
   reasons: string[];
   risks: string[];
   hardRejections: string[];
@@ -195,6 +198,7 @@ export interface PolicyInput {
   dedupDecision?: DedupDecision;
   messageClassification?: MessageClassification;
   outboundMessage?: OutboundMessage;
+  schedulingDecision?: SchedulingDecision;
   idempotencyKey?: string;
   proofReady: boolean;
   validationPassed: boolean;
@@ -211,6 +215,85 @@ export interface PolicyOutput {
   reasons: string[];
 }
 
+export interface RateLimitDecision {
+  key: string;
+  allowed: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+  resetAt: string;
+}
+
+export interface DataQualityReport {
+  totalJobs: number;
+  averageExtractionConfidence: number;
+  lowConfidenceJobIds: string[];
+  duplicateLikeJobIds: string[];
+  shortlisted: number;
+  rejected: number;
+  providerBreakdown: Record<string, { jobs: number; averageExtractionConfidence: number }>;
+}
+
+export interface SubmitGuardResult {
+  passed: boolean;
+  checks: Array<{ name: string; passed: boolean; reason: string | null }>;
+}
+
+export interface ReplyDraftResult {
+  outboundMessage: OutboundMessage | null;
+  validation: { valid: boolean; riskFlags: string[] };
+  templateId: string | null;
+  reason: string | null;
+}
+
+export interface AnalyticsFunnelReport {
+  discovered: number;
+  shortlisted: number;
+  preparedApplications: number;
+  applied: number;
+  responses: number;
+  interviews: number;
+  shortlistRate: number;
+  applyRate: number;
+  interviewRate: number;
+}
+
+export interface AnalyticsDimensionedFunnelReport {
+  dimensions: Record<string, AnalyticsFunnelReport>;
+}
+
+export interface ProviderReliabilityScore {
+  providerId: string;
+  score: number;
+  recommendedStatus: "stable" | "read_only" | "apply_disabled" | "needs_review";
+  signals: {
+    jobVolume: number;
+    averageExtractionConfidence: number;
+    responseRate: number;
+    canarySuccessRate: number;
+    failureRate: number;
+    automationRisk: number;
+  };
+  reasons: string[];
+}
+
+export interface TemplateExperimentAssignment {
+  experimentId: string;
+  templateId: string;
+  variantId: string;
+  eligible: boolean;
+  guardrails: Array<{ name: string; passed: boolean; reason: string | null }>;
+}
+
+export interface ProfileReadinessReport {
+  profileId: string;
+  mode: AppMode;
+  ready: boolean;
+  blockers: string[];
+  warnings: string[];
+  missingFields: string[];
+}
+
 export interface ResumeRoute {
   resumeId: string | null;
   confidence: number;
@@ -220,6 +303,7 @@ export interface ResumeRoute {
 export interface MessageClassification {
   category: MessageCategory;
   confidence: number;
+  priorityScore?: number;
   requiresReply: boolean;
   deadline: string | null;
   containsInterviewLink: boolean;
@@ -233,6 +317,9 @@ export interface ProposedSlot {
   date: string;
   time: string;
   timezone: string;
+  durationMinutes?: number;
+  confidence?: number;
+  sourceText?: string;
 }
 
 export interface InterviewEvent {
@@ -245,8 +332,154 @@ export interface InterviewEvent {
   format: "video_call" | "phone" | "onsite" | "unknown";
   link: string | null;
   recruiterName: string | null;
-  status: "scheduled" | "pending_confirmation";
+  status: "scheduled" | "pending_confirmation" | "cancelled";
   summaryPackId: string;
+}
+
+export interface CalendarBusyWindow {
+  id: string;
+  source: "interview_events" | "external_calendar" | "manual_block";
+  start: string;
+  end: string;
+  timezone: string;
+  title: string | null;
+}
+
+export interface SchedulingDecision {
+  status: "confirm_slot" | "propose_alternatives" | "ask_clarification" | "manual_review";
+  selectedSlot: ProposedSlot | null;
+  alternatives: ProposedSlot[];
+  reasons: string[];
+  policyProof: {
+    timezoneMatched: boolean;
+    minNoticeSatisfied: boolean;
+    insideAvailabilityWindow: boolean;
+    noCalendarConflict: boolean;
+    maxPerDaySatisfied: boolean;
+    proofHash?: string;
+  };
+}
+
+export interface OutboundDispatchProof {
+  proofId: string;
+  outboundMessageId: string;
+  providerId: string;
+  accountId: string;
+  conversationId: string;
+  inboundMessageId: string;
+  idempotencyKey: string;
+  transport: "fixture" | "provider" | "telegram" | "calendar";
+  status: "proof_recorded" | "queued_for_review" | "blocked" | "sent";
+  textHash: string;
+  validationHash: string;
+  policyDecision: PolicyDecision;
+  createdAt: string;
+  deliveredAt: string | null;
+}
+
+export interface OutboundDispatchResult {
+  status: "dry_run_recorded" | "queued_for_review" | "blocked" | "sent";
+  proof: OutboundDispatchProof;
+  deliveryId: string | null;
+  errors: string[];
+}
+
+export type SecretBackend = "env" | "aws_secrets_manager" | "gcp_secret_manager" | "vault" | "local_encrypted_file";
+
+export interface SecretReference {
+  id: string;
+  providerId: string;
+  purpose: "provider_api" | "browser_session" | "telegram_bot" | "llm_api" | "calendar";
+  backend: SecretBackend;
+  reference: string;
+  createdAt: string;
+  rotatedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface SecretValidationResult {
+  valid: boolean;
+  riskFlags: string[];
+  safeReference: Omit<SecretReference, "reference"> & { reference: string };
+}
+
+export type RetentionArtifactType =
+  | "raw_job_payload"
+  | "dom_snapshot"
+  | "screenshot"
+  | "trace"
+  | "llm_prompt"
+  | "recruiter_message"
+  | "proof_pack"
+  | "audit_log";
+
+export interface RetentionPolicyRule {
+  artifactType: RetentionArtifactType;
+  retentionDays: number;
+  hardDelete: boolean;
+}
+
+export interface RetentionArtifact {
+  artifactId: string;
+  artifactType: RetentionArtifactType;
+  createdAt: string;
+  retentionUntil: string | null;
+  legalHold: boolean;
+}
+
+export interface RetentionDecision {
+  artifactId: string;
+  artifactType: RetentionArtifactType;
+  action: "retain" | "purge" | "legal_hold";
+  reason: string;
+  purgeAfter: string | null;
+}
+
+export interface ReleaseGateCheck {
+  name: string;
+  passed: boolean;
+  reason: string | null;
+}
+
+export interface ReleaseGateReport {
+  readyForLiveAutomation: boolean;
+  checks: ReleaseGateCheck[];
+  blockers: string[];
+}
+
+export const releaseEvidenceTypes = [
+  "live_credentials_configured",
+  "external_secrets_backend",
+  "live_canary_passed",
+  "provider_submit_proof_ready",
+  "calendar_integration_ready",
+  "seven_day_soak_passed",
+  "outbound_dispatch_proof_ready"
+] as const;
+export type ReleaseEvidenceType = (typeof releaseEvidenceTypes)[number];
+
+export interface ReleaseEvidenceRecord {
+  evidenceId: string;
+  evidenceType: ReleaseEvidenceType;
+  providerId: string | null;
+  status: "passed" | "failed";
+  observedAt: string;
+  expiresAt: string | null;
+  source: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ReleaseEvidenceSummary {
+  liveCredentialsConfigured: boolean;
+  externalSecretsBackend: boolean;
+  liveCanariesPassing: boolean;
+  providerSubmitProofReady: boolean;
+  calendarIntegrationReady: boolean;
+  sevenDaySoakPassed: boolean;
+  outboundDispatchProofReady: boolean;
+  acceptedEvidenceIds: string[];
+  invalidEvidenceIds: string[];
+  blockers: string[];
 }
 
 export interface AuditEvent {
@@ -319,6 +552,7 @@ export interface PrepareApplicationInput {
 
 export interface ProviderModule {
   providerId: string;
+  runtimeKind?: "fixture" | "live";
   capabilities: ProviderCapabilities;
   healthcheck(ctx: ProviderContext): Promise<ProviderHealth>;
   authenticate(ctx: AuthContext): Promise<AuthResult>;

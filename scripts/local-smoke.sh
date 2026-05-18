@@ -3,8 +3,10 @@ set -euo pipefail
 
 API_PORT="${API_PORT:-3127}"
 API_TOKEN="${API_TOKEN:-local-dev-token}"
+STATE_BACKEND="${STATE_BACKEND:-postgres}"
 API_BASE="http://127.0.0.1:${API_PORT}"
 API_PID=""
+export API_PORT API_TOKEN STATE_BACKEND
 
 cleanup() {
   if [[ -n "${API_PID}" ]] && kill -0 "${API_PID}" >/dev/null 2>&1; then
@@ -25,7 +27,7 @@ require_body_contains() {
 
 pnpm db:migrate
 
-API_PORT="${API_PORT}" API_TOKEN="${API_TOKEN}" pnpm api >/tmp/job-search-api-smoke.log 2>&1 &
+pnpm api >/tmp/job-search-api-smoke.log 2>&1 &
 API_PID="$!"
 
 for _ in {1..30}; do
@@ -64,6 +66,7 @@ fi
 pnpm worker:ingest >/dev/null
 pnpm worker:apply >/dev/null
 pnpm worker:inbox >/dev/null
+pnpm worker:reply >/dev/null
 pnpm worker:digest >/dev/null
 pnpm worker:canary >/dev/null
 

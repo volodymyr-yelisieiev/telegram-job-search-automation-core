@@ -56,6 +56,11 @@ export const selectorPacks: Record<string, SelectorPack> = {
         primary: "[data-test='apply-button']",
         fallbacks: ["button:has-text('Apply')", "button:has-text('Відгукнутися')"],
         required: true
+      },
+      cover_letter_textarea: {
+        primary: "textarea[name='coverLetter']",
+        fallbacks: ["textarea", "[data-test='cover-letter']"],
+        required: false
       }
     }
   },
@@ -111,6 +116,16 @@ export const pageFingerprints: Record<string, PageFingerprint[]> = {
   ],
   robota: [
     {
+      id: "robota_search_results",
+      provider: "robota",
+      version: "2026-05-18-v1",
+      urlPattern: "/jobs",
+      titlePattern: "jobs|ваканс",
+      requiredDomAnchors: ["[data-test='job-title']"],
+      requiredTextAnchors: ["jobs", "ваканс"],
+      captchaIndicators: ["captcha", "cloudflare"]
+    },
+    {
       id: "robota_job_page",
       provider: "robota",
       version: "2026-05-16-v1",
@@ -118,6 +133,26 @@ export const pageFingerprints: Record<string, PageFingerprint[]> = {
       titlePattern: "job|вакансія",
       requiredDomAnchors: ["[data-test='apply-button']"],
       requiredTextAnchors: ["Apply", "Відгукнутися"],
+      captchaIndicators: ["captcha", "cloudflare"]
+    },
+    {
+      id: "robota_apply_form",
+      provider: "robota",
+      version: "2026-05-18-v1",
+      urlPattern: "/jobs/",
+      titlePattern: "apply|відгук",
+      requiredDomAnchors: ["[data-test='apply-form']"],
+      requiredTextAnchors: ["Apply"],
+      captchaIndicators: ["captcha", "cloudflare"]
+    },
+    {
+      id: "robota_confirmation",
+      provider: "robota",
+      version: "2026-05-18-v1",
+      urlPattern: "/profile/applications",
+      titlePattern: "application|відгук",
+      requiredDomAnchors: ["[data-test='application-success']"],
+      requiredTextAnchors: ["Application sent"],
       captchaIndicators: ["captcha", "cloudflare"]
     }
   ],

@@ -3,6 +3,7 @@ import type {
   CandidateProfile,
   InterviewEvent,
   NormalizedJob,
+  ProfileReadinessReport,
   ProviderHealth,
   ScoreResult
 } from "@job-search/domain";
@@ -82,6 +83,7 @@ export function renderApplicationCard(input: {
     `Resume: ${input.resumeId}`,
     `Status: ${input.status}`,
     `Proof: ${input.proofAvailable ? "available" : "missing"}`,
+    "Actions: approve | reject | regenerate | manual_review",
     "Next: waiting for recruiter response"
   ].join("\n");
 }
@@ -95,7 +97,8 @@ export function renderInterviewCard(event: InterviewEvent, job: NormalizedJob | 
     `Format: ${event.format}`,
     `Link: ${event.link ?? "pending"}`,
     `Recruiter: ${event.recruiterName ?? "unknown"}`,
-    `Summary pack: ${event.summaryPackId}`
+    `Summary pack: ${event.summaryPackId}`,
+    `Expectations: role context, prior messages, resume highlights and scheduling proof are attached when available`
   ].join("\n");
 }
 
@@ -107,6 +110,37 @@ export function renderProfile(profile: CandidateProfile): string {
     `Location: ${profile.geography.currentLocation}`,
     `Default strategy: ${profile.strategies.default}`,
     `Active resumes: ${profile.resumes.filter((resume) => resume.active).length}`
+  ].join("\n");
+}
+
+export function renderProfileReadiness(report: ProfileReadinessReport): string {
+  return [
+    `Profile readiness: ${report.ready ? "ready" : "blocked"}`,
+    `Mode: ${report.mode}`,
+    `Missing: ${report.missingFields.length ? report.missingFields.join(", ") : "none"}`,
+    `Blockers: ${report.blockers.length ? report.blockers.join("; ") : "none"}`,
+    `Warnings: ${report.warnings.length ? report.warnings.join("; ") : "none"}`
+  ].join("\n");
+}
+
+export function renderAvailability(input: { profile: CandidateProfile; interviews: InterviewEvent[] }): string {
+  const windows = Object.entries(input.profile.availability.defaultWindows)
+    .map(([day, ranges]) => `${day}: ${ranges.join(", ")}`)
+    .join("\n");
+  const conflicts = input.interviews
+    .filter((event) => event.status !== "cancelled")
+    .map((event) => `${event.status}: ${event.dateTime} ${event.timezone}`)
+    .slice(0, 5);
+  return [
+    "Availability",
+    `Timezone: ${input.profile.availability.timezone}`,
+    `Min notice: ${input.profile.availability.minNoticeHours}h`,
+    `Max interviews/day: ${input.profile.availability.maxInterviewsPerDay}`,
+    `Buffer: ${input.profile.availability.bufferMinutesBefore}/${input.profile.availability.bufferMinutesAfter} min`,
+    "Windows:",
+    windows || "none configured",
+    "Current conflicts:",
+    conflicts.length ? conflicts.join("\n") : "none"
   ].join("\n");
 }
 
@@ -138,7 +172,8 @@ export const supportedTelegramCommands = [
   "/jobs_applied_week",
   "/job <id>",
   "/responses",
-  "/interviews",
+  "/availability",
+  "/interviews [id]",
   "/pipeline",
   "/sources",
   "/profiles",
@@ -147,6 +182,10 @@ export const supportedTelegramCommands = [
   "/whitelist_company <name>",
   "/retry_provider <provider>",
   "/manual_review",
+  "/dlq",
+  "/approve <manual_review_id>",
+  "/reject <manual_review_id>",
+  "/defer <manual_review_id>",
   "/digest_now",
   "/logs <entity_id>"
 ] as const;

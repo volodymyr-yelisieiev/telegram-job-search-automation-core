@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "runtime-preflight/v1",
+  "generatedAt": "2026-05-18T00:00:00.000Z",
+  "runExternalProbes": false,
+  "configSummary": {
+    "environment": "local",
+    "mode": "review_first",
+    "irreversibleActionsEnabled": false,
+    "stateBackend": "memory",
+    "queueBackend": "memory",
+    "postgresUrlHash": "b0f74f534a61afbe844fd936",
+    "redisUrlHash": "e817d5e70124eb1400586a98",
+    "secretsBackend": "env",
+    "localEncryptedFileConfigured": null,
+    "objectStorageBackend": "filesystem",
+    "objectStorageRootHash": "c5c00bb24b4cb15d6c348f78",
+    "s3EndpointHash": null,
+    "s3BucketHash": null,
+    "s3Region": null,
+    "s3AccessKeyIdHash": null,
+    "s3SecretAccessKeyConfigured": false,
+    "telegramBotConfigured": false,
+    "telegramTokenHash": null,
+    "telegramWebhookSecretConfigured": false,
+    "telegramWebhookSecretHash": null,
+    "llmProvider": "mock",
+    "llmApiConfigured": false,
+    "llmApiBaseUrlHash": null,
+    "liveSubmitProviders": []
+  },
+  "checks": [
+    {
+      "name": "production_environment",
+      "required": true,
+      "passed": false,
+      "reason": "NODE_ENV must be production",
+      "metadata": {}
+    },
+    {
+      "name": "controlled_or_full_auto_apply_mode",
+      "required": true,
+      "passed": false,
+      "reason": "APP_MODE must enable live automation",
+      "metadata": {}
+    },
+    {
+      "name": "irreversible_actions_enabled",
+      "required": true,
+      "passed": false,
+      "reason": "IRREVERSIBLE_ACTIONS_ENABLED must be true",
+      "metadata": {}
+    },
+    {
+      "name": "live_submit_provider_configured",
+      "required": false,
+      "passed": true,
+      "reason": null,
+      "metadata": {
+        "liveSubmitProviderCount": 0,
+        "configuredProviderIds": []
+      }
+    },
+    {
+      "name": "postgres_state_backend",
+      "required": true,
+      "passed": false,
+      "reason": "STATE_BACKEND must be postgres",
+      "metadata": {}
+    },
+    {
+      "name": "bullmq_queue_backend",
+      "required": true,
+      "passed": false,
+      "reason": "QUEUE_BACKEND must be bullmq",
+      "metadata": {}
+    },
+    {
+      "name": "redis_reachable",
+      "required": false,
+      "passed": true,
+      "reason": "external probe not run",
+      "metadata": {
+        "skipped": true
+      }
+    },
+    {
+      "name": "external_secrets_backend",
+      "required": true,
+      "passed": false,
+      "reason": "SECRETS_BACKEND must not be env",
+      "metadata": {}
+    },
+    {
+      "name": "s3_object_storage_configured",
+      "required": true,
+      "passed": false,
+      "reason": "OBJECT_STORAGE_BACKEND must be s3_compatible with endpoint, bucket, region, and credentials",
+      "metadata": {}
+    },
+    {
+      "name": "telegram_bot_configured",
+      "required": true,
+      "passed": false,
+      "reason": "TELEGRAM_BOT_TOKEN must be configured",
+      "metadata": {}
+    },
+    {
+      "name": "live_llm_provider",
+      "required": true,
+      "passed": false,
+      "reason": "LLM_PROVIDER must not be mock",
+      "metadata": {}
+    },
+    {
+      "name": "llm_api_configured",
+      "required": true,
+      "passed": false,
+      "reason": "LLM API base URL and API key must be configured",
+      "metadata": {}
+    }
+  ],
+  "passed": false,
+  "failures": [
+    "production_environment:NODE_ENV must be production",
+    "controlled_or_full_auto_apply_mode:APP_MODE must enable live automation",
+    "irreversible_actions_enabled:IRREVERSIBLE_ACTIONS_ENABLED must be true",
+    "postgres_state_backend:STATE_BACKEND must be postgres",
+    "bullmq_queue_backend:QUEUE_BACKEND must be bullmq",
+    "external_secrets_backend:SECRETS_BACKEND must not be env",
+    "s3_object_storage_configured:OBJECT_STORAGE_BACKEND must be s3_compatible with endpoint, bucket, region, and credentials",
+    "telegram_bot_configured:TELEGRAM_BOT_TOKEN must be configured",
+    "live_llm_provider:LLM_PROVIDER must not be mock",
+    "llm_api_configured:LLM API base URL and API key must be configured",
+    "external_probes_not_run"
+  ]
+}

@@ -1,9 +1,12 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+
+const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "packages/providers/generated/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],
@@ -27,15 +30,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@job-search/automation": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/automation/src/index.ts",
-      "@job-search/config": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/config/src/index.ts",
-      "@job-search/db": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/db/src/index.ts",
-      "@job-search/domain": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/domain/src/index.ts",
-      "@job-search/llm": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/llm/src/index.ts",
-      "@job-search/observability": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/observability/src/index.ts",
-      "@job-search/providers": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/providers/src/index.ts",
-      "@job-search/telegram-ui": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/telegram-ui/src/index.ts",
-      "@job-search/testing": "/Users/v.yelisieiev/Documents/Personal/job-search/packages/testing/src/index.ts"
+      "@job-search/automation": new URL("packages/automation/src/index.ts", `file://${root}`).pathname,
+      "@job-search/config": new URL("packages/config/src/index.ts", `file://${root}`).pathname,
+      "@job-search/db": new URL("packages/db/src/index.ts", `file://${root}`).pathname,
+      "@job-search/domain": new URL("packages/domain/src/index.ts", `file://${root}`).pathname,
+      "@job-search/llm": new URL("packages/llm/src/index.ts", `file://${root}`).pathname,
+      "@job-search/observability": new URL("packages/observability/src/index.ts", `file://${root}`).pathname,
+      "@job-search/providers": new URL("packages/providers/src/index.ts", `file://${root}`).pathname,
+      "@job-search/telegram-ui": new URL("packages/telegram-ui/src/index.ts", `file://${root}`).pathname,
+      "@job-search/testing": new URL("packages/testing/src/index.ts", `file://${root}`).pathname
     }
   }
 });

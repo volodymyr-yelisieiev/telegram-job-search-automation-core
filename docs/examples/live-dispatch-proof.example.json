@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "outbound-evidence-input/v1",
+  "proofId": "outbound-dispatch-proof-2026-05-18-001",
+  "transport": "telegram",
+  "idempotencyKeyHash": "sha256:replace-with-dispatch-idempotency-hash",
+  "textHash": "sha256:replace-with-approved-message-text-hash",
+  "deliveryStatus": "sent",
+  "deliveredAt": "2026-05-18T00:00:00.000Z",
+  "rawMessagePresent": false,
+  "operatorNote": "Example input shape only. Keep raw message text out of this file."
+}
