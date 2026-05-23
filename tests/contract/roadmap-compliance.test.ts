@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,8 @@ import { buildRoadmapComplianceReport } from "../../scripts/roadmap-compliance-c
 import { buildRoadmapLocalGatesReport } from "../../scripts/roadmap-local-gates";
 import { buildRuntimePreflightReport, parseRuntimePreflightReport, type RuntimePreflightCheckName } from "../../scripts/runtime-preflight";
 
+const TEST_NOW = new Date("2026-05-18T00:00:00.000Z");
+
 function expectEnvPlaceholders(requiredEnvKeys: string[], commands: string[]): void {
   const commandText = commands.join("\n");
   for (const key of requiredEnvKeys) {
@@ -18,6 +20,15 @@ function expectEnvPlaceholders(requiredEnvKeys: string[], commands: string[]): v
 }
 
 describe("roadmap compliance matrix", () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TEST_NOW);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("covers every roadmap sprint with allowed status and evidence", () => {
     const report = buildRoadmapComplianceReport();
 
