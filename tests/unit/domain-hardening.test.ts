@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   buildDedupKey,
   AnalyticsService,
@@ -37,11 +37,22 @@ import {
 } from "@job-search/domain";
 import { createFixtureRuntime } from "@job-search/testing";
 
+const TEST_NOW = new Date("2026-05-18T00:00:00.000Z");
+
 function cloneJob(job: NormalizedJob, patch: Partial<NormalizedJob>): NormalizedJob {
   return { ...job, ...patch };
 }
 
 describe("domain hardening matrix", () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TEST_NOW);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("canonicalizes URLs for deduplication", async () => {
     const runtime = await createFixtureRuntime();
     const job = runtime.jobs[0]!;

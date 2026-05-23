@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "@job-search/config";
 import { InMemoryDatabase, InMemoryQueueAdapter, InMemoryTaskRunStore, PostgresRuntimeDatabase } from "@job-search/db";
 import { createAuditEvent, InterviewCoordinator, stableHash, type OutboundDispatchResult, type OutboundMessage, type ProofPack } from "@job-search/domain";
@@ -32,8 +32,18 @@ import { buildReleaseEvidenceValidationReport } from "../../scripts/release-evid
 import { buildSoakEvidenceReport, parseSoakEvidenceInput } from "../../scripts/soak-evidence";
 
 const auth = (token: string) => ({ authorization: `Bearer ${token}` });
+const TEST_NOW = new Date("2026-05-18T00:00:00.000Z");
 
 describe("API, Telegram and worker hardening", () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TEST_NOW);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("does not overwrite persisted Postgres mode with startup config defaults", async () => {
     const config = loadConfig({ APP_MODE: "controlled_auto_apply", IRREVERSIBLE_ACTIONS_ENABLED: "true", API_TOKEN: "test-token" });
     const db = new PostgresRuntimeDatabase({
